@@ -454,3 +454,10 @@
 - **Cause:** the base game's HtmlDocument NCA can be sparse too (16 KB, beside the sparse Program NCA). `--html` reads the update's HtmlDocument NCAs, each over a base one when it is a patch, and then every base HtmlDocument NCA on its own; a sparse one read alone fails the hash check while its tables open.
 - **Fix:** `dm/tools/nx_extract/Program.cs` reads no sparse base HtmlDocument NCA on its own (`a sparse HtmlDocument NCA of the base game (… bytes): read only through the update's patch, not alone`), as Horizon mounts it only through its patch.
 - **Found on:** [Minecraft Dungeons II](../../dm/games/0100A7C01B792000/README.md), base v0 with update v131072: the update's patch (`accessible-urls`) and its full legal information NCA are read, the base's legal information NCA too.
+
+### A registered build outside the shader versions
+
+- **Symptom:** packing a registered older update with both updates present stops because the split shader tables differ from the profile's; using the newer tables would leave the older game without its shader keys.
+- **Cause:** registered code builds and `shader_versions` describe different things. The NSP script checked that all shader-source versions were present, then also scanned the packed version even when the canonical shader tables did not cover it.
+- **Fix:** `shader_profile_reason` in the NSP script derives a package's own shader tables when it is outside the profile's non-empty `shader_versions`. The registered code build and its build-gated rewriter cuts remain available. A profile that declares a union still requires every version in that union; an empty list keeps the previous selection. `test_nsp_shader_versions.py` checks an older registered package with both updates present, its derived profile, the declared union and missing inputs.
+- **Found on:** [Mina the Hollower](../../dm/games/0100DCD01F306000/README.md#106-on-current-main), 1.0.5 and 1.0.6: 90 of 110 shader keys differ, so one update's table cannot serve both. Only 1.0.6 is available locally; a combined split of both updates is not claimed.

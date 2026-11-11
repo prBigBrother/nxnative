@@ -990,6 +990,20 @@ def frame_step_builds(path, table='FRAME_STEP'):   # the keys of a table of a pa
     return set()
 
 
+def shader_profile_reason(g, ver, have):
+    """Why this package needs its own shader tables. Registered code builds may predate the versions used for the profile's tables (Mina 1.0.5 beside 1.0.6).
+    Having both updates on disk does not make the newer tables cover the older build; derive from the packed version and keep its registered rewriter cuts."""
+    builds, need = g.builds(), g.words('shader_versions')
+    if ver not in builds:
+        registered = ", ".join(f'{v} {b["display"]}' for v, b in builds.items())
+        return f'{ver} is not a version game profile {g.id} registers ({registered})'
+    if need and ver not in need:
+        return f'{ver} is not among the versions whose shaders game profile {g.id} registers ({", ".join(need)})'
+    if not all(v in have for v in need):
+        return f'the folder has no {", ".join(v for v in need if v not in have)}, whose files game profile {g.id}\'s shader tables were made from'
+    return False
+
+
 def derive_profile(g, pdir, ver, d, mods, app=None, shader_only=False):
     """The game's profile for a version it was not brought up on (the folder has no update, another update, files of other builds, or a registered build under another title ID: app),
     in pdir (outside the repository, where a provisional profile goes): its keys as they are, with this version's build row, package and shader versions, and app's title ID and
@@ -3019,10 +3033,7 @@ def main(args=None):
         # any other version (no update, another update) is packed from a profile derived from it (derive_profile), with its own shaders
         pkg_ver = args.package or PACKAGE or max(have, key=vnum)
         if pkg_ver not in have: raise BuildError(f'the version to pack (-p / PACKAGE) is not in the folder, which holds {", ".join(sorted(have, key=vnum))}')
-        if pkg_ver not in builds:
-            registered_builds = ", ".join(f'{v} {b["display"]}' for v, b in builds.items())
-            derived = f'{pkg_ver} is not a version game profile {g.id} registers ({registered_builds})'
-        elif not all(v in have for v in need): derived = f'the folder has no {", ".join(v for v in need if v not in have)}, whose files game profile {g.id}\'s shader tables were made from'
+        derived = shader_profile_reason(g, pkg_ver, have)
         if alias and not derived: derived = f'title {app:016X} is not game profile {g.id}\'s title {g.title_id:016X}'
         if derived: say(f'{derived}: packing {pkg_ver} from a profile derived from it')
     versions = [pkg_ver] if derived else need + ([pkg_ver] if pkg_ver not in need else [])
